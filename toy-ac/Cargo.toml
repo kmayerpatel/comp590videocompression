@@ -1,0 +1,9 @@
+[package]
+name = "toy-ac"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+assert_float_eq = "1.1"
+bitbit = "0.2"
+workspace_root = "0.2"
