@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Range {
     bw: u32,
     high: u64,
@@ -18,7 +19,6 @@ impl Range {
     }
 
     fn hob_mask(&self) -> u64 {0x1 << (self.bw-1)}
-    fn sob_mask(&self) -> u64 {0x1 << (self.bw-2)}
     fn range_mask(&self) -> u64 {0xffffffffffffffff >> (64-self.bw)}
     fn three_quarter_mark(&self) -> u64 {0x3 << (self.bw-2)}
     fn quarter_mark(&self) -> u64 {(!self.three_quarter_mark()) & self.range_mask()}

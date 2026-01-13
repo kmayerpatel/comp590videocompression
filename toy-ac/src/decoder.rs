@@ -1,13 +1,14 @@
 use super::range::Range;
 use super::symbol_model::SymbolModel;
-use std::io::Read;
-use bitbit::reader::Bit;
 use bitbit::BitReader;
+use bitbit::reader::Bit;
+use std::io::Read;
 
+#[derive(Debug)]
 pub struct Decoder {
     range: Range,
     buffer: u32,
-    initialized: bool
+    initialized: bool,
 }
 
 impl Decoder {
@@ -15,22 +16,26 @@ impl Decoder {
         Self {
             range: Range::new(32),
             buffer: 0x0,
-            initialized: false
+            initialized: false,
         }
     }
 
-    pub fn decode<'a, T: Eq, R: Read, B: Bit>(&mut self, m: &'a dyn SymbolModel<T>, input: &mut BitReader<R, B>) -> &'a T {
+    pub fn decode<'a, T: Eq, R: Read, B: Bit>(
+        &mut self,
+        m: &'a dyn SymbolModel<T>,
+        input: &mut BitReader<R, B>,
+    ) -> &'a T {
         // Load bits if first time
         if !self.initialized {
             match input.read_bits(32) {
                 Ok(bits) => self.buffer = bits,
-                Err(_) => panic!("Must have at least 32 bits to read initially.")
+                Err(_) => panic!("Must have at least 32 bits to read initially."),
             }
             self.initialized = true;
         }
 
         let range_width = self.range.width();
-        let v = self.buffer as f64 / range_width as f64;
+        let v = (self.buffer as u64 - self.range.low()) as f64 / range_width as f64;
         let (result, int_start, int_end) = m.lookup(v);
 
         let new_low = (range_width as f64 * int_start) as u64 + self.range.low();
@@ -41,8 +46,8 @@ impl Decoder {
             assert!(is_one == (self.buffer & 0x80000000 != 0));
 
             match input.read_bit() {
-                Ok(bit) => self.buffer = self.buffer << 1 | if bit {0x1} else {0x0},
-                Err(_) => panic!("Error reading bit")
+                Ok(bit) => self.buffer = self.buffer << 1 | if bit { 0x1 } else { 0x0 },
+                Err(_) => panic!("Error reading bit"),
             }
         }
 
@@ -53,17 +58,24 @@ impl Decoder {
             let buffer_hob_is_one = (self.buffer & 0x80000000) != 0;
             match input.read_bit() {
                 Ok(bit) => {
-                    self.buffer = self.buffer << 1 | if bit {0x1} else {0x0};
+                    self.buffer = self.buffer << 1 | if bit { 0x1 } else { 0x0 };
                     if buffer_hob_is_one {
                         self.buffer |= 0x80000000
                     } else {
                         self.buffer &= !0x80000000
                     }
-                },
-                Err(_) => panic!("Erorr reading bit")
+                }
+                Err(_) => panic!("Erorr reading bit"),
             }
         }
         return result;
     }
-}
 
+    pub fn high(&self) -> u64 {
+        self.range.high()
+    }
+
+    pub fn low(&self) -> u64 {
+        self.range.low()
+    }
+}

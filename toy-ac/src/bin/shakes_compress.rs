@@ -1,48 +1,92 @@
+use std::env;
 use std::fs::File;
 use std::io::{BufReader, BufWriter, Read, Write};
 
-use toy_ac::encoder::Encoder;
 use bitbit::BitWriter;
+use toy_ac::encoder::Encoder;
 
 use toy_ac::symbol_model::VectorCountSymbolModel;
 use workspace_root::get_workspace_root;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let mut log_flag = false;
+    for arg in env::args().skip(1) {
+        if arg == "-log" {
+            log_flag = true;
+        }
+    }
+
     let mut sm = VectorCountSymbolModel::new((0..=255).collect());
     let mut enc = Encoder::new();
-    
+
     let mut data_folder_path = get_workspace_root();
     data_folder_path.push("data");
 
     let input_file = match File::open(data_folder_path.join("shakespeare.txt")) {
         Err(_) => panic!("Error opening file"),
-        Ok(f) => f
+        Ok(f) => f,
     };
+    let metadata = input_file.metadata()?;
+    let input_length = metadata.len();
 
     let output_file = match File::create(data_folder_path.join("out.dat")) {
         Err(_) => panic!("Error opening output file"),
-        Ok(f) => f
+        Ok(f) => f,
     };
 
+    let mut log_writer: Option<BufWriter<File>>;
+    if log_flag {
+        let log_file = match File::create(data_folder_path.join("encode-log.txt")) {
+            Err(_) => panic!("Error opening log file"),
+            Ok(f) => f,
+        };
+        log_writer = Some(BufWriter::new(log_file));
+    } else {
+        log_writer = None;
+    }
+
     let mut buf_writer = BufWriter::new(output_file);
+    // First write out the input length as a u64
+    buf_writer.write(&input_length.to_be_bytes())?;
+
     let mut bw = BitWriter::new(&mut buf_writer);
 
     let reader = BufReader::new(input_file);
 
+    let mut count = 0;
+
     for next_byte in reader.bytes() {
+        if log_flag {
+            let mut lw = log_writer.unwrap();
+            write!(
+                &mut lw,
+                "Count: {}, High: {:#x}, Low: {:#x}\n",
+                count,
+                enc.high(),
+                enc.low()
+            )?;
+            log_writer = Some(lw);
+        }
+
         match next_byte {
             Ok(b) => {
                 enc.encode(&b, &sm, &mut bw);
                 sm.incr_count(&b);
-            },
-            Err(_) => panic!("Error reading byte from file")
+            }
+            Err(_) => panic!("Error reading byte from file"),
         }
+        count += 1;
     }
 
-    bw.pad_to_byte();
-    buf_writer.flush();
-    
-//    enc.encode(&(5 as u8), &sm, &mut bw);
+    enc.finish(&mut bw)?;
 
-    println!("Hello, world");
+    bw.pad_to_byte()?;
+    buf_writer.flush()?;
+
+    if log_flag {
+        let mut lw = log_writer.unwrap();
+        lw.flush()?;
+    }
+
+    Ok(())
 }

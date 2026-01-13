@@ -8,6 +8,7 @@ pub struct VectorCountSymbolModel<T: std::cmp::Eq> {
     symbols: Vec<T>,
     counts: Vec<u32>,
     total: u32,
+    norm_count: u32
 }
 
 impl<T: std::cmp::Eq> VectorCountSymbolModel<T> {
@@ -18,6 +19,7 @@ impl<T: std::cmp::Eq> VectorCountSymbolModel<T> {
             symbols: symbols,
             counts: counts,
             total: length,
+            norm_count: 0
         }
     }
 
@@ -37,12 +39,32 @@ impl<T: std::cmp::Eq> VectorCountSymbolModel<T> {
         self.total -= self.counts[idx];
         self.counts[idx] = c;
         self.total += self.counts[idx];
+        self.normalize();
     }
 
     pub fn incr_count(&mut self, s: &T) {
         let idx = self.find_index(s);
         self.total += 1;
         self.counts[idx] += 1;
+        self.normalize();
+    }
+
+    fn normalize(&mut self) {
+        // Need to prevent intervals from getting too small. 
+        // This should be made configurable, but for now just hard coding
+        // so that no interval can get smaller than 1/N shown below.
+
+        // If normalizing threshold is 114950 or higher, decompression fails for some reason.
+        while self.total >= 100000 {    
+            self.norm_count += 1;
+
+            let mut new_total = 0;
+            for i in 0..self.symbols.len() {
+                self.counts[i] = if self.counts[i] < 3 {1} else {self.counts[i]/2};
+                new_total += self.counts[i];
+            }
+            self.total = new_total;
+        }
     }
 
 }
@@ -76,7 +98,7 @@ impl<T: std::cmp::Eq> SymbolModel<T> for VectorCountSymbolModel<T> {
         let mut sum = 0;
         let mut idx = 0;
         while idx < self.symbols.len() {
-            let int_start = (sum as f64 / self.total as f64);
+            let int_start = sum as f64 / self.total as f64;
             let int_end = ((sum + self.counts[idx]) as f64) / self.total as f64;
             if v >= int_start && v < int_end {
                 return (&self.symbols[idx], int_start, int_end);
@@ -88,6 +110,7 @@ impl<T: std::cmp::Eq> SymbolModel<T> for VectorCountSymbolModel<T> {
     }
 }
 
+#[cfg(test)]
 mod tests {
     use super::*;
     use assert_float_eq::assert_f64_near;
