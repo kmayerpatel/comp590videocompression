@@ -27,10 +27,14 @@ impl Encoder {
             panic!("Value is not in model");
         }
 
-        let (int_start, int_end) = m.interval(s);
+        let (int_start, int_end) = m.interval(s);        
+        let total = m.total() as u64;
         let range_width = self.range.width();
-        let new_low = (range_width as f64 * int_start) as u64 + self.range.low();
-        let new_high = (range_width as f64 * int_end) as u64 + self.range.low() - 1;
+        let low = self.range.low();
+
+        let new_low = low + (range_width * int_start as u64) / total;
+        let new_high = low + (range_width * int_end as u64) / total - 1;
+
         self.range.reduce(new_high, new_low);
         if self.range.hob_match() {
             let is_one = self.range.shift_hob();

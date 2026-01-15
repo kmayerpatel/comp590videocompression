@@ -33,13 +33,23 @@ impl Decoder {
             }
             self.initialized = true;
         }
+        // Bits in decoding buffer should always be in range [low, high]
+        assert!(self.buffer as u64 >= self.range.low());
+        assert!(self.buffer as u64 <= self.range.high());
+        
+
 
         let range_width = self.range.width();
-        let v = (self.buffer as u64 - self.range.low()) as f64 / range_width as f64;
+        let low = self.range.low();
+        let total = m.total() as u64;
+        let offset = self.buffer as u64 - low;
+
+        let v = (((offset+1)* total -1) / range_width) as u32;
         let (result, int_start, int_end) = m.lookup(v);
 
-        let new_low = (range_width as f64 * int_start) as u64 + self.range.low();
-        let new_high = (range_width as f64 * int_end) as u64 + self.range.low() - 1;
+        let new_low = low + (range_width * int_start as u64) / total;
+        let new_high = low + (range_width * int_end as u64) / total  - 1;
+
         self.range.reduce(new_high, new_low);
         while self.range.hob_match() {
             let is_one = self.range.shift_hob();

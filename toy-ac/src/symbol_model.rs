@@ -1,7 +1,8 @@
 pub trait SymbolModel<T: std::cmp::Eq> {
     fn contains(&self, s: &T) -> bool;
-    fn interval(&self, s: &T) -> (f64, f64);
-    fn lookup(&self, v: f64) -> (&T, f64, f64);
+    fn total(&self) -> u32;
+    fn interval(&self, s: &T) -> (u32, u32);
+    fn lookup(&self, v: u32) -> (&T, u32, u32);
 }
 
 pub struct VectorCountSymbolModel<T: std::cmp::Eq> {
@@ -54,8 +55,7 @@ impl<T: std::cmp::Eq> VectorCountSymbolModel<T> {
         // This should be made configurable, but for now just hard coding
         // so that no interval can get smaller than 1/N shown below.
 
-        // If normalizing threshold is 114950 or higher, decompression fails for some reason.
-        while self.total >= 100000 {    
+        while self.total >= 1000000 {    
             self.norm_count += 1;
 
             let mut new_total = 0;
@@ -74,15 +74,12 @@ impl<T: std::cmp::Eq> SymbolModel<T> for VectorCountSymbolModel<T> {
         return self.symbols.contains(s);
     }
 
-    fn interval(&self, s: &T) -> (f64, f64) {
+    fn interval(&self, s: &T) -> (u32, u32) {
         let mut sum = 0;
         let mut idx = 0;
         while idx < self.symbols.len() {
             if self.symbols[idx] == *s {
-                return (
-                    (sum as f64 / self.total as f64),
-                    ((sum + self.counts[idx]) as f64 / self.total as f64),
-                );
+                return (sum, sum + self.counts[idx]);
             }
             sum += self.counts[idx];
             idx += 1;
@@ -90,30 +87,30 @@ impl<T: std::cmp::Eq> SymbolModel<T> for VectorCountSymbolModel<T> {
         panic!("Symbol not in model.");
     }
 
-    fn lookup(&self, v: f64) -> (&T, f64, f64) {
-        if v < 0.0 || v >= 1.0 {
+    fn lookup(&self, v: u32) -> (&T, u32, u32) {
+        if v >= self.total {
             panic!("Lookup value out of range");
         }
 
         let mut sum = 0;
-        let mut idx = 0;
-        while idx < self.symbols.len() {
-            let int_start = sum as f64 / self.total as f64;
-            let int_end = ((sum + self.counts[idx]) as f64) / self.total as f64;
-            if v >= int_start && v < int_end {
-                return (&self.symbols[idx], int_start, int_end);
+        for i in 0..self.symbols.len() {
+            let next = sum + self.counts[i];
+            if v < next {
+                return (&self.symbols[i], sum, next);
             }
-            sum += self.counts[idx];
-            idx += 1;
+            sum = next;
         }
         panic!("Should never happen");
+    }
+    
+    fn total(&self) -> u32 {
+        return self.total;
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use assert_float_eq::assert_f64_near;
 
     #[test]
     fn init_test() {
@@ -159,16 +156,19 @@ mod tests {
         let d_interval = sm.interval(&'d');
         let e_interval = sm.interval(&'e');
 
-        assert_f64_near!(a_interval.0, 0.0);
-        assert_f64_near!(b_interval.0, (5.0 / 50.0) as f64);
-        assert_f64_near!(c_interval.0, (15.0 / 50.0) as f64);
-        assert_f64_near!(d_interval.0, (23.0 / 50.0) as f64);
-        assert_f64_near!(e_interval.0, (25.0 / 50.0) as f64);
+        assert_eq!(sm.total(), 50);
 
-        assert_f64_near!(a_interval.1, (5.0 / 50.0) as f64);
-        assert_f64_near!(b_interval.1, (15.0 / 50.0) as f64);
-        assert_f64_near!(c_interval.1, (23.0 / 50.0) as f64);
-        assert_f64_near!(d_interval.1, (25.0 / 50.0) as f64);
-        assert_f64_near!(e_interval.1, 1.0);
+        assert_eq!(a_interval.0, 0);
+        assert_eq!(b_interval.0, 5);
+        assert_eq!(c_interval.0, 15);
+        assert_eq!(d_interval.0, 23);
+        assert_eq!(e_interval.0, 25);
+
+        assert_eq!(a_interval.1, 5);
+        assert_eq!(b_interval.1, 15);
+        assert_eq!(c_interval.1, 23);
+        assert_eq!(d_interval.1, 25);
+        assert_eq!(e_interval.1, 50);
+
     }
 }
