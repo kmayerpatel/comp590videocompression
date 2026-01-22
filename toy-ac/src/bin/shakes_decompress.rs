@@ -17,7 +17,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut sm = VectorCountSymbolModel::new((0..=255).collect());
+    let mut sm_contexts: Vec<VectorCountSymbolModel<u8>> = Vec::new();
+    for _ in 0..=255 {
+        sm_contexts.push(VectorCountSymbolModel::new((0..=255).collect()));
+    }
+
+
+    // let mut sm = VectorCountSymbolModel::new((0..=255).collect());
     let mut dec = Decoder::new();
 
     let mut data_folder_path = get_workspace_root();
@@ -54,6 +60,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut writer = BufWriter::new(output_file);
 
+    let mut prior = 0;
+
     for count in 0..output_size {
         if log_flag {
             let mut lw = log_writer.unwrap();
@@ -67,9 +75,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             log_writer = Some(lw);
         }
 
-        let next_byte = dec.decode(&sm, &mut br);
+        let next_byte = dec.decode(&sm_contexts[prior], &mut br);
         let next_byte = next_byte.to_owned();
-        sm.incr_count(&next_byte);
+
+        sm_contexts[prior].incr_count(&next_byte);
+        prior = next_byte as usize;
 
         writer.write(&[next_byte])?;
     }

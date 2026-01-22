@@ -16,7 +16,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
     }
 
-    let mut sm = VectorCountSymbolModel::new((0..=255).collect());
+    let mut sm_contexts: Vec<VectorCountSymbolModel<u8>> = Vec::new();
+    for _ in 0..=255 {
+        sm_contexts.push(VectorCountSymbolModel::new((0..=255).collect()));
+    }
+
+    // let mut sm = VectorCountSymbolModel::new((0..=255).collect());
+
     let mut enc = Encoder::new();
 
     let mut data_folder_path = get_workspace_root();
@@ -55,6 +61,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut count = 0;
 
+    let mut prior = 0;
+
     for next_byte in reader.bytes() {
         if log_flag {
             let mut lw = log_writer.unwrap();
@@ -70,8 +78,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match next_byte {
             Ok(b) => {
-                enc.encode(&b, &sm, &mut bw);
-                sm.incr_count(&b);
+                enc.encode(&b, &sm_contexts[prior], &mut bw);
+                sm_contexts[prior].incr_count(&b);
+                prior = b as usize;
             }
             Err(_) => panic!("Error reading byte from file"),
         }
