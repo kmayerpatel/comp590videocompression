@@ -71,6 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         match next_byte {
             Ok(b) => {
                 enc.encode(&b, &sm, &mut bw);
+                sm.incr_count(&b);
             }
             Err(_) => panic!("Error reading byte from file"),
         }

@@ -16,19 +16,13 @@ impl<T: std::cmp::Eq> VectorCountSymbolModel<T> {
 
 
     pub fn new(symbols: Vec<T>) -> Self {
-//        let counts: Vec<u32> = vec![1; symbols.len()];
+        let counts: Vec<u32> = vec![1; symbols.len()];
 
-        // Use General English Frequency
-        let mut counts = ascii_english_letter_weights_1000();
-        let mut count_total = 0;
-        for i in 0..counts.len() {
-            count_total += counts[i];
-        }
-//        let length = symbols.len() as u32;
+        let length = symbols.len() as u32;
         Self {
             symbols: symbols,
             counts: counts,
-            total: count_total,
+            total: length,
             norm_count: 0
         }
     }

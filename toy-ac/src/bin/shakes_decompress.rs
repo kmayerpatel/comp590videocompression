@@ -69,6 +69,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         let next_byte = dec.decode(&sm, &mut br);
         let next_byte = next_byte.to_owned();
+        sm.incr_count(&next_byte);
 
         writer.write(&[next_byte])?;
     }
