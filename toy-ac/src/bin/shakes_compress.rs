@@ -5,6 +5,7 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use bitbit::BitWriter;
 use toy_ac::encoder::Encoder;
 
+use toy_ac::symbol_model::SymbolModel;
 use toy_ac::symbol_model::VectorCountSymbolModel;
 use workspace_root::get_workspace_root;
 
@@ -56,11 +57,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut count = 0;
 
     for next_byte in reader.bytes() {
-        if log_flag {
+        if log_flag && count <= 1102200 && count > 1102100{
             let mut lw = log_writer.unwrap();
             write!(
                 &mut lw,
-                "Count: {}, High: {:#x}, Low: {:#x}\n",
+                "Count: {}, High: {:#x}, Low: {:#010x}, ",
                 count,
                 enc.high(),
                 enc.low()
@@ -70,8 +71,31 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match next_byte {
             Ok(b) => {
+                if log_flag && count <= 1102200 && count > 1102100 {
+                    let (int_start, int_end) = sm.interval(&b);        
+
+                    let mut lw = log_writer.unwrap();
+                    write!(
+                        &mut lw,
+                        "Symbol: {}, IntStart: {:10}, IntEnd: {:10}, Total: {:10}, ",
+                        if b == 10 {format!("\\n ")} else {format!("'{}'", (b as u8 as char))},  
+                        int_start, int_end, sm.total()
+                    )?;
+                    log_writer = Some(lw);
+                }
+
                 enc.encode(&b, &sm, &mut bw);
                 sm.incr_count(&b);
+
+                if log_flag && count <= 1102200 && count > 1102100 {
+                    let mut lw = log_writer.unwrap();
+                    write!(
+                        &mut lw,
+                        "High: {:#x}, Low: {:#010x}\n",
+                        enc.high(), enc.low()
+                    )?;
+                    log_writer = Some(lw);
+                }
             }
             Err(_) => panic!("Error reading byte from file"),
         }

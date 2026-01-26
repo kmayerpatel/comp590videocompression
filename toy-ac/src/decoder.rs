@@ -88,4 +88,8 @@ impl Decoder {
     pub fn low(&self) -> u64 {
         self.range.low()
     }
+
+    pub fn buffer(&self) -> u32 {
+        self.buffer
+    }
 }

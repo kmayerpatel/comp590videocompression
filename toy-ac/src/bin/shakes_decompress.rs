@@ -5,11 +5,11 @@ use std::io::{BufReader, BufWriter, Read, Write};
 use bitbit::{BitReader, MSB};
 use toy_ac::decoder::Decoder;
 
+use toy_ac::symbol_model::SymbolModel;
 use toy_ac::symbol_model::VectorCountSymbolModel;
 use workspace_root::get_workspace_root;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     let mut log_flag = false;
     for arg in env::args().skip(1) {
         if arg == "-log" {
@@ -55,14 +55,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = BufWriter::new(output_file);
 
     for count in 0..output_size {
-        if log_flag {
+        if log_flag && count > 1102100 && count <= 1102200 {
             let mut lw = log_writer.unwrap();
             write!(
                 &mut lw,
-                "Count: {}, High: {:#x}, Low: {:#x}\n",
+                "Count: {}, High: {:#x}, Low: {:#010x}, Buffer: {:#010x}, Total: {:10}, ",
                 count,
                 dec.high(),
-                dec.low()
+                dec.low(),
+                dec.buffer(),
+                sm.total()
             )?;
             log_writer = Some(lw);
         }
@@ -70,6 +72,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let next_byte = dec.decode(&sm, &mut br);
         let next_byte = next_byte.to_owned();
         sm.incr_count(&next_byte);
+
+        if log_flag && count > 1102100 && count <= 1102200 {
+            let mut lw = log_writer.unwrap();
+            write!(
+                &mut lw,
+                "Symbol: {}, High: {:#x}, Low: {:#010x}\n",
+                if next_byte == 10 {
+                    format!("\\n ")
+                } else {
+                    format!("'{}'", (next_byte as char))
+                },
+                dec.high(),
+                dec.low()
+            )?;
+            log_writer = Some(lw);
+        }
 
         writer.write(&[next_byte])?;
     }
