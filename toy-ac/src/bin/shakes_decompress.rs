@@ -55,7 +55,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut writer = BufWriter::new(output_file);
 
     for count in 0..output_size {
-        if log_flag && count > 1102100 && count <= 1102200 {
+        if log_flag {
             let mut lw = log_writer.unwrap();
             write!(
                 &mut lw,
@@ -73,7 +73,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let next_byte = next_byte.to_owned();
         sm.incr_count(&next_byte);
 
-        if log_flag && count > 1102100 && count <= 1102200 {
+        if log_flag {
             let mut lw = log_writer.unwrap();
             write!(
                 &mut lw,

@@ -57,7 +57,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut count = 0;
 
     for next_byte in reader.bytes() {
-        if log_flag && count <= 1102200 && count > 1102100{
+        if log_flag {
             let mut lw = log_writer.unwrap();
             write!(
                 &mut lw,
@@ -71,7 +71,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         match next_byte {
             Ok(b) => {
-                if log_flag && count <= 1102200 && count > 1102100 {
+                if log_flag {
                     let (int_start, int_end) = sm.interval(&b);        
 
                     let mut lw = log_writer.unwrap();
@@ -87,7 +87,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 enc.encode(&b, &sm, &mut bw);
                 sm.incr_count(&b);
 
-                if log_flag && count <= 1102200 && count > 1102100 {
+                if log_flag {
                     let mut lw = log_writer.unwrap();
                     write!(
                         &mut lw,
